@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.v4.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/swipeRefreshLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <ScrollView
+        android:id="@+id/listView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
+
+        <LinearLayout
+            android:id="@+id/linearlayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical" >
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 01" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 02" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 03" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 04" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 05" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 06" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 07" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 08" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 09" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="67dp"
+                android:text="测试的item 10" />
+        </LinearLayout>
+    </ScrollView>
+
+</android.support.v4.widget.SwipeRefreshLayout>
