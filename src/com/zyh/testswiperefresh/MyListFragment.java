@@ -37,9 +37,13 @@ public class MyListFragment extends Fragment {
 		}
 		adapter = new ArrayAdapter<String>(getActivity(), android.R.layout.simple_list_item_1, data);
 		listView.setAdapter(adapter);
+		
+		//findview
 		swipeRefreshLayout = (SwipeRefreshLayout) v.findViewById(R.id.swipeRefreshLayout);
+		//设置卷内的颜色
 		swipeRefreshLayout.setColorSchemeResources(android.R.color.holo_blue_bright,
 				android.R.color.holo_green_light, android.R.color.holo_orange_light, android.R.color.holo_red_light);
+		//设置下拉刷新监听
 		swipeRefreshLayout.setOnRefreshListener(new OnRefreshListener() {
 			@Override
 			public void onRefresh() {
@@ -47,6 +51,7 @@ public class MyListFragment extends Fragment {
 					public void run() {
 						data.add(0, "添加新的item" + new Random().nextInt());
 						adapter.notifyDataSetChanged();
+						//停止刷新动画
 						swipeRefreshLayout.setRefreshing(false);
 					}
 				}, 3000);
