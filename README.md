@@ -1,6 +1,3 @@
-# SwipeRefreshLayout
-谷歌的下拉刷新，新的界面效果
-
 
 # SwipeRefreshLayout 源码分析
 
