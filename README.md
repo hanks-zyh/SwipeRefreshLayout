@@ -1,12 +1,11 @@
-
 # SwipeRefreshLayout 源码分析
 
 
 关键词: Android SwipeRefreshLayout 下拉刷新
 
 ## 简介
-[官方文档](http://developer.android.com/intl/zh-cn/reference/android/support/v4/widget/SwipeRefreshLayout.html) SwipeRefreshLayout 是一个下拉刷新控件，可以包裹一个任何可以滑动的内容，可以自动识别垂直滑动手势。
-使用起来非常方便。
+[官方文档](http://developer.android.com/intl/zh-cn/reference/android/support/v4/widget/SwipeRefreshLayout.html) 
+`SwipeRefreshLayout` 是一个下拉刷新控件，几乎可以包裹一个任何可以滑动的内容（ListView GridView ScrollView RecyclerView），可以自动识别垂直滑动手势。使用起来非常方便。
 
 | | |
 |:-:|:-:|
@@ -54,6 +53,8 @@ mySwipeRefreshLayout.setOnRefreshListener(
 
 ## SwipeRefreshLayout 源码分析
 
+本文基于 v4 版本 `23.3.0`
+
 extends `ViewGroup` implements `NestedScrollingParent` `NestedScrollingChild`
 ```
 java.lang.Object
@@ -82,7 +83,7 @@ SwipeRefreshLayout 作为一个下拉刷新的动画，按理说只需要实现`
 ### 初始化变量
 
 
-SwipeRefreshLayout 内部有 2 个 View，一个圆圈（mCircleView），一个内部可滚动的 View（mTarget）。除了 View，还包含一个 OnRefreshListener 接口，当刷新动画被触发时回调。
+`SwipeRefreshLayout` 内部有 2 个 View，一个`圆圈（mCircleView）`，一个内部可滚动的` View（mTarget）`。除了 View，还包含一个 `OnRefreshListener` 接口，当刷新动画被触发时回调。
 
 ```java
 /**
@@ -122,7 +123,7 @@ public SwipeRefreshLayout(Context context, AttributeSet attrs) {
     mSpinnerFinalOffset = DEFAULT_CIRCLE_TARGET * metrics.density;
     mTotalDragDistance = mSpinnerFinalOffset;
 
-    // 通过 NestedScrolling 机制来控制 父 View 与 子View 的嵌套滚动
+    // 通过 NestedScrolling 机制来处理嵌套滚动
     mNestedScrollingParentHelper = new NestedScrollingParentHelper(this);
     mNestedScrollingChildHelper = new NestedScrollingChildHelper(this);
     setNestedScrollingEnabled(true);
@@ -140,6 +141,7 @@ private void createProgressView() {
     addView(mCircleView);
 }
 ```
+可以看出使用背景圆圈是 v4 包里提供的 CircleImageView 控件，中间的是 MaterialProgressDrawable 进度条。
 
 ### onMeasure
 
@@ -154,11 +156,14 @@ public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
     if (mTarget == null) {
         return;
     }
+
+    // 测量子 View
     mTarget.measure(MeasureSpec.makeMeasureSpec(
             getMeasuredWidth() - getPaddingLeft() - getPaddingRight(),
             MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(
             getMeasuredHeight() - getPaddingTop() - getPaddingBottom(), MeasureSpec.EXACTLY));
 
+    // 测量刷新的圆圈 mCircleView
     mCircleView.measure(MeasureSpec.makeMeasureSpec(mCircleWidth, MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(mCircleHeight, MeasureSpec.EXACTLY));
 
@@ -231,7 +236,111 @@ protected void onLayout(boolean changed, int left, int top, int right, int botto
 
 ### 处理 Touch 事件
 
-SwipeRefreshLayout 通过实现 `NestedScrollingParent` `NestedScrollingChild` 接口来分发触摸事件。
+SwipeRefreshLayout 通过实现 `NestedScrollingParent` `NestedScrollingChild` 接口来分发触摸事件，如果不太了解的话，建议看一下相关的文档。
+
+
+```java
+// NestedScrollingParent
+
+// 子 View （NestedScrollingChild）开始滑动前回调此方法,返回 true 表示接收嵌套滑动，然后调用下面的 onNestedScrollAccepted
+// 具体可以看 NestedScrollingChildHelper 的源码
+@Override
+public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
+    // 子 View 回调，判断是否开始嵌套滑动
+    return isEnabled() && !mReturningToStart && !mRefreshing
+            && (nestedScrollAxes & ViewCompat.SCROLL_AXIS_VERTICAL) != 0;
+}
+
+@Override
+public void onNestedScrollAccepted(View child, View target, int axes) {
+    // Reset the counter of how much leftover scroll needs to be consumed.
+    mNestedScrollingParentHelper.onNestedScrollAccepted(child, target, axes);
+    // Dispatch up to the nested parent
+    startNestedScroll(axes & ViewCompat.SCROLL_AXIS_VERTICAL);
+    mTotalUnconsumed = 0;
+    mNestedScrollInProgress = true;
+}
+
+//
+@Override
+public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
+    // If we are in the middle of consuming, a scroll, then we want to move the spinner back up
+    // before allowing the list to scroll
+    if (dy > 0 && mTotalUnconsumed > 0) {
+        if (dy > mTotalUnconsumed) {
+            consumed[1] = dy - (int) mTotalUnconsumed;
+            mTotalUnconsumed = 0;
+        } else {
+            mTotalUnconsumed -= dy;
+            consumed[1] = dy;
+        }
+        // 出现动画圆圈，并向下移动
+        moveSpinner(mTotalUnconsumed);
+    }
+
+    // If a client layout is using a custom start position for the circle
+    // view, they mean to hide it again before scrolling the child view
+    // If we get back to mTotalUnconsumed == 0 and there is more to go, hide
+    // the circle so it isn't exposed if its blocking content is moved
+    if (mUsingCustomStart && dy > 0 && mTotalUnconsumed == 0
+            && Math.abs(dy - consumed[1]) > 0) {
+        mCircleView.setVisibility(View.GONE);
+    }
+
+    // Now let our nested parent consume the leftovers
+    final int[] parentConsumed = mParentScrollConsumed;
+    if (dispatchNestedPreScroll(dx - consumed[0], dy - consumed[1], parentConsumed, null)) {
+        consumed[0] += parentConsumed[0];
+        consumed[1] += parentConsumed[1];
+    }
+}
+
+@Override
+public int getNestedScrollAxes() {
+    return mNestedScrollingParentHelper.getNestedScrollAxes();
+}
+
+@Override
+public void onStopNestedScroll(View target) {
+    mNestedScrollingParentHelper.onStopNestedScroll(target);
+    mNestedScrollInProgress = false;
+    // Finish the spinner for nested scrolling if we ever consumed any
+    // unconsumed nested scroll
+    if (mTotalUnconsumed > 0) {
+        finishSpinner(mTotalUnconsumed);
+        mTotalUnconsumed = 0;
+    }
+    // Dispatch up our nested parent
+    stopNestedScroll();
+}
+
+// onStartNestedScroll 返回 true 才会调用此方法。此方法表示子View将滑动事件分发到父 View（SwipeRefreshLayout）
+//  @param target The descendent view controlling the nested scroll
+//  @param dxConsumed Horizontal scroll distance in pixels already consumed by target
+//  @param dyConsumed Vertical scroll distance in pixels already consumed by target
+//  @param dxUnconsumed Horizontal scroll distance in pixels not consumed by target
+//  @param dyUnconsumed Vertical scroll distance in pixels not consumed by target
+@Override
+public void onNestedScroll(final View target, final int dxConsumed, final int dyConsumed,
+        final int dxUnconsumed, final int dyUnconsumed) {
+    // Dispatch up to the nested parent first
+    dispatchNestedScroll(dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed,
+            mParentOffsetInWindow);
+
+    // This is a bit of a hack. Nested scrolling works from the bottom up, and as we are
+    // sometimes between two nested scrolling views, we need a way to be able to know when any
+    // nested scrolling parent has stopped handling events. We do that by using the
+    // 'offset in window 'functionality to see if we have been moved from the event.
+    // This is a decent indication of whether we should take over the event stream or not.
+    final int dy = dyUnconsumed + mParentOffsetInWindow[1];
+    if (dy < 0 && !canChildScrollUp()) {
+        mTotalUnconsumed += Math.abs(dy);
+        moveSpinner(mTotalUnconsumed);
+    }
+}
+```
+
+
 
 首先是 onInterceptTouchEvent，返回 true 表示拦截触摸事件。
 
@@ -532,6 +641,7 @@ private void finishSpinner(float overscrollTop) {
 ```
 
 startScaleUpAnimation 开启一个动画，然后在动画结束后回调 onRefresh 方法。
+
 ```java
 private Animation.AnimationListener mRefreshListener = new Animation.AnimationListener() {
    @Override
@@ -564,4 +674,4 @@ private Animation.AnimationListener mRefreshListener = new Animation.AnimationLi
 ```
 ## 总结
 
-分析 SwipeRefreshLayout 的流程就是按照平时我们自定义 ViewGroup 的流程，但是其中有好多需要我们借鉴的地方，处理滑动冲突其实就是使用 NestedScroll 机制，还有多点触控的处理，onMeasure 中减去了 padding。
+分析 SwipeRefreshLayout 的流程就是按照平时我们自定义 ViewGroup 的流程，但是其中也有好多需要我们借鉴的地方，如何使用 NestedScroll ，多点触控的处理，onMeasure 中减去了 padding，如何判断子 View 是否可滚动，如何确定 ViewGroup 中某一个 View 的索引。
