@@ -4,7 +4,7 @@
 关键词: Android SwipeRefreshLayout 下拉刷新
 
 ## 简介
-[官方文档](http://developer.android.com/intl/zh-cn/reference/android/support/v4/widget/SwipeRefreshLayout.html) 
+[官方文档](http://developer.android.com/intl/zh-cn/reference/android/support/v4/widget/SwipeRefreshLayout.html)
 `SwipeRefreshLayout` 是一个下拉刷新控件，几乎可以包裹一个任何可以滑动的内容（ListView GridView ScrollView RecyclerView），可以自动识别垂直滑动手势。使用起来非常方便。
 
 | | |
@@ -28,6 +28,13 @@
 
 设置刷新动画的触发回调
 ```java
+
+//设置下拉出现小圆圈是否是缩放出现，出现的位置，最大的下拉位置
+mySwipeRefreshLayout.setProgressViewOffset(true, 50, 200);
+
+//设置下拉圆圈的大小，两个值 LARGE， DEFAULT
+mySwipeRefreshLayout.setSize(SwipeRefreshLayout.LARGE);
+
 /*
  * Sets up a SwipeRefreshLayout.OnRefreshListener that is invoked when the user
  * performs a swipe-to-refresh gesture.
@@ -63,19 +70,23 @@ java.lang.Object
  	 	   ↳	android.support.v4.widget.SwipeRefreshLayout
 ```
 
-
 其实就是一个自定义的 ViewGroup ，结合我们自己平时自定义 ViewGroup 的步骤：
+
 1. 初始化变量
 2. onMeasure
 3. onLayout
-4. 处理交互 dispatchTouchEvent onInterceptTouchEvent onTouchEvent
+4. 处理交互 `dispatchTouchEvent` `onInterceptTouchEvent` `onTouchEvent`
 5. 暴露出公共接口供其他类调用
 
-此外，实现了两个接口 `NestedScrollingParent` `NestedScrollingChild`。关于 `NestedScroll`机制，可以去 google。这里提供两篇文章:
+![UML](https://dn-coding-net-production-pp.qbox.me/a175b761-9513-42e8-bce1-a1e407388c2e.png)
+
+
+>此外，实现了两个接口 `NestedScrollingParent` `NestedScrollingChild`。关于 `NestedScroll`机制，可以去 google。这里提供两篇文章:
 - [NestedScrollingParent, NestedScrollingChild  详解](http://blog.csdn.net/chen930724/article/details/50307193)
 - [Android NestedScrolling 实战](http://www.race604.com/android-nested-scrolling/)
 
-简单总结一下，如果你的 View 实现 `NestedScrollingChild` 接口就可以支持嵌套滑动了（什么是嵌套滑动，就是滑动子View，父 View 也可以根据子 View 状态进行滑动，见 `CoordinatorLayout`）。同理，实现了 `NestedScrollingParent`接口就可以处理内部的子 View （实现了 NestedScrollingChild 的子 View）的滑动了。 NestedScrollingChildHelper 和 NestedScrollingParentHelper 是实现了对应的接口的类，可以帮助我们更简单的实现嵌套滑动（见上面的2篇文章）。
+
+简单总结一下，如果你的 View 实现 `NestedScrollingChild` 接口就可以支持嵌套滑动了（什么是嵌套滑动，就是滑动子View，父 View 也可以根据子 View 状态进行滑动，见 `CoordinatorLayout`）。同理，实现了 `NestedScrollingParent`接口就可以处理内部的子 View （实现了 `NestedScrollingChild` 的子 View）的滑动了。 `NestedScrollingChildHelper` 和 `NestedScrollingParentHelper` 是实现了对应的接口的类，可以帮助我们更简单的实现嵌套滑动（见上面的2篇文章）。
 
 SwipeRefreshLayout 作为一个下拉刷新的动画，按理说只需要实现`NestedScrollingParent` 就行了，但是为了考虑到有其他可以滑动的组件嵌套 SwipeRefreshLayout（如 CoordinatorLayout ），所以也实现了`NestedScrollingChild`。Android 5.0 的大部分可以滑动的控件都支持了 NestScrolling 接口，最新的 Support V4 中也一样。
 
@@ -84,6 +95,8 @@ SwipeRefreshLayout 作为一个下拉刷新的动画，按理说只需要实现`
 
 
 `SwipeRefreshLayout` 内部有 2 个 View，一个`圆圈（mCircleView）`，一个内部可滚动的` View（mTarget）`。除了 View，还包含一个 `OnRefreshListener` 接口，当刷新动画被触发时回调。
+
+![图片](https://dn-coding-net-production-pp.qbox.me/6567dece-9ba7-47fa-9c03-d980c2e2cb18.png)
 
 ```java
 /**
@@ -110,7 +123,7 @@ public SwipeRefreshLayout(Context context, AttributeSet attrs) {
     setEnabled(a.getBoolean(0, true));
     a.recycle();
 
-    // 刷新的圆圈的大小
+    // 刷新的圆圈的大小，单位转换成 sp
     final DisplayMetrics metrics = getResources().getDisplayMetrics();
     mCircleWidth = (int) (CIRCLE_DIAMETER * metrics.density);
     mCircleHeight = (int) (CIRCLE_DIAMETER * metrics.density);
@@ -121,6 +134,7 @@ public SwipeRefreshLayout(Context context, AttributeSet attrs) {
     ViewCompat.setChildrenDrawingOrderEnabled(this, true);
     // the absolute offset has to take into account that the circle starts at an offset
     mSpinnerFinalOffset = DEFAULT_CIRCLE_TARGET * metrics.density;
+    // 刷新动画的临界距离值
     mTotalDragDistance = mSpinnerFinalOffset;
 
     // 通过 NestedScrolling 机制来处理嵌套滚动
@@ -141,7 +155,7 @@ private void createProgressView() {
     addView(mCircleView);
 }
 ```
-可以看出使用背景圆圈是 v4 包里提供的 CircleImageView 控件，中间的是 MaterialProgressDrawable 进度条。
+可以看出使用背景圆圈是 v4 包里提供的 `CircleImageView` 控件，中间的是 `MaterialProgressDrawable` 进度条。
 
 ### onMeasure
 
@@ -157,7 +171,7 @@ public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         return;
     }
 
-    // 测量子 View
+    // 测量子 View （mTarget）
     mTarget.measure(MeasureSpec.makeMeasureSpec(
             getMeasuredWidth() - getPaddingLeft() - getPaddingRight(),
             MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(
@@ -208,6 +222,7 @@ private void ensureTarget() {
 ```java
 @Override
 protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+  // 获取 SwipeRefreshLayout 的宽高
    final int width = getMeasuredWidth();
    final int height = getMeasuredHeight();
    if (getChildCount() == 0) {
@@ -219,11 +234,13 @@ protected void onLayout(boolean changed, int left, int top, int right, int botto
    if (mTarget == null) {
        return;
    }
+   // 考虑到给控件设置 padding，去除 padding 的距离
    final View child = mTarget;
    final int childLeft = getPaddingLeft();
    final int childTop = getPaddingTop();
    final int childWidth = width - getPaddingLeft() - getPaddingRight();
    final int childHeight = height - getPaddingTop() - getPaddingBottom();
+   // 设置 mTarget 的位置
    child.layout(childLeft, childTop, childLeft + childWidth, childTop + childHeight);
    int circleWidth = mCircleView.getMeasuredWidth();
    int circleHeight = mCircleView.getMeasuredHeight();
@@ -232,43 +249,53 @@ protected void onLayout(boolean changed, int left, int top, int right, int botto
            (width / 2 + circleWidth / 2), mCurrentTargetOffsetTop + circleHeight);
 }
 ```
+![mCircleView onLayout](https://dn-coding-net-production-pp.qbox.me/8a53f0b9-4a59-495b-9866-3852706b89e0.png)
+//mCurrentTargetOffsetTop = mOriginalOffsetTop = -mCircleView.getMeasuredHeight();
+在 onLayout 中放置了 mCircleView 的位置，注意 顶部位置是 mCurrentTargetOffsetTop ，mCurrentTargetOffsetTop 初始距离是`-mCircleView.getMeasuredHeight()`，所以是在 SwipeRefreshLayout 外。
 
 
 ### 处理 Touch 事件
 
 SwipeRefreshLayout 通过实现 `NestedScrollingParent` `NestedScrollingChild` 接口来分发触摸事件，如果不太了解的话，建议看一下相关的文档。
 
-
+看一下 SwipeRefreshLayout 实现 NestedScrollingParent 的相关方法
 ```java
 // NestedScrollingParent
 
-// 子 View （NestedScrollingChild）开始滑动前回调此方法,返回 true 表示接收嵌套滑动，然后调用下面的 onNestedScrollAccepted
+// 子 View （NestedScrollingChild）开始滑动前回调此方法,返回 true 表示接收嵌套滑动，然后调用 onNestedScrollAccepted
 // 具体可以看 NestedScrollingChildHelper 的源码
 @Override
 public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
-    // 子 View 回调，判断是否开始嵌套滑动
+    // 子 View 回调，判断是否开始嵌套滑动 ，
     return isEnabled() && !mReturningToStart && !mRefreshing
             && (nestedScrollAxes & ViewCompat.SCROLL_AXIS_VERTICAL) != 0;
 }
 
 @Override
-public void onNestedScrollAccepted(View child, View target, int axes) {
-    // Reset the counter of how much leftover scroll needs to be consumed.
-    mNestedScrollingParentHelper.onNestedScrollAccepted(child, target, axes);
-    // Dispatch up to the nested parent
-    startNestedScroll(axes & ViewCompat.SCROLL_AXIS_VERTICAL);
-    mTotalUnconsumed = 0;
-    mNestedScrollInProgress = true;
-}
+ public void onNestedScrollAccepted(View child, View target, int axes) {
+     // Reset the counter of how much leftover scroll needs to be consumed.
+     mNestedScrollingParentHelper.onNestedScrollAccepted(child, target, axes);
+     // Dispatch up to the nested parent
+     startNestedScroll(axes & ViewCompat.SCROLL_AXIS_VERTICAL);
+     mTotalUnconsumed = 0;
+     mNestedScrollInProgress = true;
+ }
+```
+SwipeRefreshLayout 只接受竖直方向（Y轴）的滑动，并且在刷新动画进行中不接受滑动。
 
-//
+```java
+// NestedScrollingChild 在滑动的时候会触发， 看父类消耗了多少距离
+//   * @param dx x 轴滑动的距离
+//   * @param dy y 轴滑动的距离
+//   * @param consumed 代表 父 View 消费的滑动距离
+//  
 @Override
 public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
     // If we are in the middle of consuming, a scroll, then we want to move the spinner back up
     // before allowing the list to scroll
     if (dy > 0 && mTotalUnconsumed > 0) {
         if (dy > mTotalUnconsumed) {
-            consumed[1] = dy - (int) mTotalUnconsumed;
+            consumed[1] = dy - (int) mTotalUnconsumed; // 消费的 y 轴的距离
             mTotalUnconsumed = 0;
         } else {
             mTotalUnconsumed -= dy;
@@ -295,24 +322,6 @@ public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
     }
 }
 
-@Override
-public int getNestedScrollAxes() {
-    return mNestedScrollingParentHelper.getNestedScrollAxes();
-}
-
-@Override
-public void onStopNestedScroll(View target) {
-    mNestedScrollingParentHelper.onStopNestedScroll(target);
-    mNestedScrollInProgress = false;
-    // Finish the spinner for nested scrolling if we ever consumed any
-    // unconsumed nested scroll
-    if (mTotalUnconsumed > 0) {
-        finishSpinner(mTotalUnconsumed);
-        mTotalUnconsumed = 0;
-    }
-    // Dispatch up our nested parent
-    stopNestedScroll();
-}
 
 // onStartNestedScroll 返回 true 才会调用此方法。此方法表示子View将滑动事件分发到父 View（SwipeRefreshLayout）
 //  @param target The descendent view controlling the nested scroll
@@ -353,12 +362,12 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
     final int action = MotionEventCompat.getActionMasked(ev);
 
-
+    // 手指按下时恢复状态
     if (mReturningToStart && action == MotionEvent.ACTION_DOWN) {
         mReturningToStart = false;
     }
 
-    // 空间可用 || 刷新事件刚结束正在恢复初始状态时 || 子 View 可滚动 || 正在刷新 ||
+    // 控件可用 || 刷新事件刚结束正在恢复初始状态时 || 子 View 可滚动 || 正在刷新 || 父 View 正在滑动
     if (!isEnabled() || mReturningToStart || canChildScrollUp()
             || mRefreshing || mNestedScrollInProgress) {
         // Fail fast if we're not in a state where a swipe is possible
@@ -367,10 +376,10 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 
     switch (action) {
         case MotionEvent.ACTION_DOWN:
-            // 记录手指按下的位置，为了判断是否开始滑动
             setTargetOffsetTopAndBottom(mOriginalOffsetTop - mCircleView.getTop(), true);
             mActivePointerId = MotionEventCompat.getPointerId(ev, 0);
             mIsBeingDragged = false;
+            // 记录手指按下的位置，为了判断是否开始滑动
             final float initialDownY = getMotionEventY(ev, mActivePointerId);
             if (initialDownY == -1) {
                 return false;
@@ -393,6 +402,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
             if (yDiff > mTouchSlop && !mIsBeingDragged) {
                 mInitialMotionY = mInitialDownY + mTouchSlop;
                 mIsBeingDragged = true;
+                // 正在拖动状态，更新圆圈的 progressbar 的 alpha 值
                 mProgress.setAlpha(STARTING_PROGRESS_ALPHA);
             }
             break;
@@ -436,7 +446,7 @@ public boolean canChildScrollUp() {
 }
 
 ```
-
+可以通过上面的方法判断 View 是否可以继续向上滑动。
 
 ```java
 
@@ -456,6 +466,7 @@ public boolean onTouchEvent(MotionEvent ev) {
 
     switch (action) {
         case MotionEvent.ACTION_DOWN:
+            // 获取第一个按下的手指
             mActivePointerId = MotionEventCompat.getPointerId(ev, 0);
             mIsBeingDragged = false;
             break;
@@ -522,9 +533,14 @@ public boolean onTouchEvent(MotionEvent ev) {
 ```java
 // 手指下拉过程中触发的圆圈的变化过程，透明度变化，渐渐出现箭头，大小的变化
 private void moveSpinner(float overscrollTop) {
+
+    // 设置为有箭头的 progress
     mProgress.showArrow(true);
+
+    //
     float originalDragPercent = overscrollTop / mTotalDragDistance;
 
+    // 一堆调整距离的参数
     float dragPercent = Math.min(1f, Math.abs(originalDragPercent));
     float adjustedPercent = (float) Math.max(dragPercent - .4, 0) * 5 / 3;
     float extraOS = Math.abs(overscrollTop) - mTotalDragDistance;
@@ -541,14 +557,16 @@ private void moveSpinner(float overscrollTop) {
     if (mCircleView.getVisibility() != View.VISIBLE) {
         mCircleView.setVisibility(View.VISIBLE);
     }
+    // 设置的是否有缩放
     if (!mScale) {
         ViewCompat.setScaleX(mCircleView, 1f);
         ViewCompat.setScaleY(mCircleView, 1f);
     }
-
+    // 设置缩放进度
     if (mScale) {
         setAnimationProgress(Math.min(1f, overscrollTop / mTotalDragDistance));
     }
+    // 移动距离未达到最大距离
     if (overscrollTop < mTotalDragDistance) {
         if (mProgress.getAlpha() > STARTING_PROGRESS_ALPHA
                 && !isAnimationRunning(mAlphaStartAnimation)) {
@@ -561,10 +579,12 @@ private void moveSpinner(float overscrollTop) {
             startProgressAlphaMaxAnimation();
         }
     }
+    // 出现的进度，裁剪 mProgress
     float strokeStart = adjustedPercent * .8f;
     mProgress.setStartEndTrim(0f, Math.min(MAX_PROGRESS_ANGLE, strokeStart));
     mProgress.setArrowScale(Math.min(1f, adjustedPercent));
 
+    // 旋转
     float rotation = (-0.25f + .4f * adjustedPercent + tensionPercent * 2) * .5f;
     mProgress.setProgressRotation(rotation);
     setTargetOffsetTopAndBottom(targetY - mCurrentTargetOffsetTop, true /* requires update */);
