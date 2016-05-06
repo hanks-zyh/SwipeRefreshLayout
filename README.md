@@ -1,17 +1,18 @@
-# SwipeRefreshLayout 源码分析
 
 
-关键词: Android SwipeRefreshLayout 下拉刷新
+
 
 ## 简介
 [官方文档](http://developer.android.com/intl/zh-cn/reference/android/support/v4/widget/SwipeRefreshLayout.html)
+
 `SwipeRefreshLayout` 是一个下拉刷新控件，几乎可以包裹一个任何可以滑动的内容（ListView GridView ScrollView RecyclerView），可以自动识别垂直滑动手势。使用起来非常方便。
 
 | | |
 |:-:|:-:|
 |![](http://img.blog.csdn.net/20150127120706062)|![](http://img.blog.csdn.net/20150127121649015)|
 
-将需要下拉刷新的空间包裹起来
+1. 将需要下拉刷新的空间包裹起来
+
 ```xml
 <android.support.v4.widget.SwipeRefreshLayout
     android:layout_width="match_parent"
@@ -26,7 +27,8 @@
 ```
 
 
-设置刷新动画的触发回调
+2. 设置刷新动画的触发回调
+
 ```java
 
 //设置下拉出现小圆圈是否是缩放出现，出现的位置，最大的下拉位置
@@ -36,18 +38,13 @@ mySwipeRefreshLayout.setProgressViewOffset(true, 50, 200);
 mySwipeRefreshLayout.setSize(SwipeRefreshLayout.LARGE);
 
 /*
- * Sets up a SwipeRefreshLayout.OnRefreshListener that is invoked when the user
- * performs a swipe-to-refresh gesture.
+ * 设置手势下拉刷新的监听
  */
 mySwipeRefreshLayout.setOnRefreshListener(
     new SwipeRefreshLayout.OnRefreshListener() {
         @Override
         public void onRefresh() {
-            Log.i(LOG_TAG, "onRefresh called from SwipeRefreshLayout");
-
-            // This method performs the actual data-refresh operation.
-            // The method calls setRefreshing(false) when it's finished.
-            myUpdateOperation();
+            // 刷新动画开始后回调到此方法
         }
     }
 );
@@ -56,11 +53,10 @@ mySwipeRefreshLayout.setOnRefreshListener(
 
 通过 `setRefreshing(false)` 和 `setRefreshing(true)` 来手动调用刷新的动画（以前版本好像设置了不生效，现在修复了）。
 **注意!** `onRefresh` 的回调只有在手势下拉的情况下才会触发，通过 `setRefreshing` 只能调用刷新的动画是否显示。
-关于使用 SwipeRefreshLayout，查看[不一样的下拉刷新-----SwipeRefreshLayout](http://hanks.xyz/2015/01/27/%E4%B8%8D%E4%B8%80%E6%A0%B7%E7%9A%84%E4%B8%8B%E6%8B%89%E5%88%B7%E6%96%B0-----SwipeRefreshLayout/)
 
 ## SwipeRefreshLayout 源码分析
 
-本文基于 v4 版本 `23.3.0`
+本文基于 v4 版本 `23.2.0`
 
 extends `ViewGroup` implements `NestedScrollingParent` `NestedScrollingChild`
 ```
@@ -78,17 +74,13 @@ java.lang.Object
 4. 处理交互 `dispatchTouchEvent` `onInterceptTouchEvent` `onTouchEvent`
 5. 暴露出公共接口供其他类调用
 
+接下来就按照上面的步骤进行分析。
+
+>此外，实现了两个接口 `NestedScrollingParent` `NestedScrollingChild`。关于 `NestedScroll`机制，可以去 google。
 ![UML](https://dn-coding-net-production-pp.qbox.me/a175b761-9513-42e8-bce1-a1e407388c2e.png)
-
-
->此外，实现了两个接口 `NestedScrollingParent` `NestedScrollingChild`。关于 `NestedScroll`机制，可以去 google。这里提供两篇文章:
-- [NestedScrollingParent, NestedScrollingChild  详解](http://blog.csdn.net/chen930724/article/details/50307193)
-- [Android NestedScrolling 实战](http://www.race604.com/android-nested-scrolling/)
-
-
 简单总结一下，如果你的 View 实现 `NestedScrollingChild` 接口就可以支持嵌套滑动了（什么是嵌套滑动，就是滑动子View，父 View 也可以根据子 View 状态进行滑动，见 `CoordinatorLayout`）。同理，实现了 `NestedScrollingParent`接口就可以处理内部的子 View （实现了 `NestedScrollingChild` 的子 View）的滑动了。 `NestedScrollingChildHelper` 和 `NestedScrollingParentHelper` 是实现了对应的接口的类，可以帮助我们更简单的实现嵌套滑动（见上面的2篇文章）。
 
-SwipeRefreshLayout 作为一个下拉刷新的动画，按理说只需要实现`NestedScrollingParent` 就行了，但是为了考虑到有其他可以滑动的组件嵌套 SwipeRefreshLayout（如 CoordinatorLayout ），所以也实现了`NestedScrollingChild`。Android 5.0 的大部分可以滑动的控件都支持了 NestScrolling 接口，最新的 Support V4 中也一样。
+`SwipeRefreshLayout` 作为一个下拉刷新的动画，按理说只需要实现`NestedScrollingParent` 就行了，但是为了考虑到有其他可以滑动的组件嵌套 `SwipeRefreshLayout`（如 `CoordinatorLayout` ），所以也实现了`NestedScrollingChild`。Android 5.0 的大部分可以滑动的控件都支持了 `NestScrolling` 接口，最新的 Support V4 中也一样。
 
 
 ### 初始化变量
@@ -96,7 +88,9 @@ SwipeRefreshLayout 作为一个下拉刷新的动画，按理说只需要实现`
 
 `SwipeRefreshLayout` 内部有 2 个 View，一个`圆圈（mCircleView）`，一个内部可滚动的` View（mTarget）`。除了 View，还包含一个 `OnRefreshListener` 接口，当刷新动画被触发时回调。
 
-![图片](https://dn-coding-net-production-pp.qbox.me/6567dece-9ba7-47fa-9c03-d980c2e2cb18.png)
+ 
+ ![图片](https://dn-coding-net-production-pp.qbox.me/8e02212d-b364-4df8-bfaa-47f3084f89e7.png) 
+
 
 ```java
 /**
@@ -249,7 +243,8 @@ protected void onLayout(boolean changed, int left, int top, int right, int botto
            (width / 2 + circleWidth / 2), mCurrentTargetOffsetTop + circleHeight);
 }
 ```
-![mCircleView onLayout](https://dn-coding-net-production-pp.qbox.me/8a53f0b9-4a59-495b-9866-3852706b89e0.png)
+ ![图片](https://dn-coding-net-production-pp.qbox.me/8df6d458-700b-4ec5-b731-c6b8c34cdddc.png) 
+
 //mCurrentTargetOffsetTop = mOriginalOffsetTop = -mCircleView.getMeasuredHeight();
 在 onLayout 中放置了 mCircleView 的位置，注意 顶部位置是 mCurrentTargetOffsetTop ，mCurrentTargetOffsetTop 初始距离是`-mCircleView.getMeasuredHeight()`，所以是在 SwipeRefreshLayout 外。
 
@@ -288,7 +283,7 @@ SwipeRefreshLayout 只接受竖直方向（Y轴）的滑动，并且在刷新动
 //   * @param dx x 轴滑动的距离
 //   * @param dy y 轴滑动的距离
 //   * @param consumed 代表 父 View 消费的滑动距离
-//  
+//
 @Override
 public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
     // If we are in the middle of consuming, a scroll, then we want to move the spinner back up
@@ -472,6 +467,7 @@ public boolean onTouchEvent(MotionEvent ev) {
             break;
 
         case MotionEvent.ACTION_MOVE: {
+          // 处理多指触控
             pointerIndex = MotionEventCompat.findPointerIndex(ev, mActivePointerId);
             if (pointerIndex < 0) {
                 Log.e(LOG_TAG, "Got ACTION_MOVE event but have an invalid active pointer id.");
@@ -490,7 +486,7 @@ public boolean onTouchEvent(MotionEvent ev) {
             }
             break;
         }
-        // 处理多指触控
+
         case MotionEventCompat.ACTION_POINTER_DOWN: {
             pointerIndex = MotionEventCompat.getActionIndex(ev);
             if (pointerIndex < 0) {
@@ -537,22 +533,30 @@ private void moveSpinner(float overscrollTop) {
     // 设置为有箭头的 progress
     mProgress.showArrow(true);
 
-    //
+    // 进度转化成百分比
     float originalDragPercent = overscrollTop / mTotalDragDistance;
 
-    // 一堆调整距离的参数
+    // 避免百分比超过 100%
     float dragPercent = Math.min(1f, Math.abs(originalDragPercent));
+    // 调整拖动百分比，造成视差效果
     float adjustedPercent = (float) Math.max(dragPercent - .4, 0) * 5 / 3;
+    //
     float extraOS = Math.abs(overscrollTop) - mTotalDragDistance;
+
+    // 这里mUsingCustomStart 为 true 代表用户自定义了起始出现的坐标
     float slingshotDist = mUsingCustomStart ? mSpinnerFinalOffset - mOriginalOffsetTop
             : mSpinnerFinalOffset;
+
+    // 弹性系数
     float tensionSlingshotPercent = Math.max(0, Math.min(extraOS, slingshotDist * 2)
             / slingshotDist);
     float tensionPercent = (float) ((tensionSlingshotPercent / 4) - Math.pow(
             (tensionSlingshotPercent / 4), 2)) * 2f;
     float extraMove = (slingshotDist) * tensionPercent * 2;
 
+    // 因为有弹性系数，不同的手指滑动距离不同于view的移动距离
     int targetY = mOriginalOffsetTop + (int) ((slingshotDist * dragPercent) + extraMove);
+
     // where 1.0f is a full circle
     if (mCircleView.getVisibility() != View.VISIBLE) {
         mCircleView.setVisibility(View.VISIBLE);
@@ -600,29 +604,12 @@ private void finishSpinner(float overscrollTop) {
         // 取消刷新的圆圈，将圆圈移动到初始位置
         mRefreshing = false;
         mProgress.setStartEndTrim(0f, 0f);
-        Animation.AnimationListener listener = null;
-        if (!mScale) {
-            listener = new Animation.AnimationListener() {
+        // ...省略代码
 
-                @Override
-                public void onAnimationStart(Animation animation) {
-                }
-
-                @Override
-                public void onAnimationEnd(Animation animation) {
-                    if (!mScale) {
-                        startScaleDownAnimation(null);
-                    }
-                }
-
-                @Override
-                public void onAnimationRepeat(Animation animation) {
-                }
-
-            };
-        }
+        // 移动到初始位置
         animateOffsetToStartPosition(mCurrentTargetOffsetTop, listener);
-        mProgress.showArrow(false);
+        // 设置没有箭头
+        mProgress.showArrow(false)
     }
 }
 
@@ -695,3 +682,4 @@ private Animation.AnimationListener mRefreshListener = new Animation.AnimationLi
 ## 总结
 
 分析 SwipeRefreshLayout 的流程就是按照平时我们自定义 ViewGroup 的流程，但是其中也有好多需要我们借鉴的地方，如何使用 NestedScroll ，多点触控的处理，onMeasure 中减去了 padding，如何判断子 View 是否可滚动，如何确定 ViewGroup 中某一个 View 的索引。
+一个好的下拉刷新框架不仅仅要兼容各种滑动的子控件，还要考虑自己要兼容 NestedScrolling 的情况，比如放到 CooCoordinatorLayout 的情况。
