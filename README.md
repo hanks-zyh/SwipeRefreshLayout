@@ -738,11 +738,10 @@ private Animation.AnimationListener mRefreshListener = new Animation.AnimationLi
        }
    }
 };
-
+```
 
 可以看到刷新动画结束后，通过 mNotify 的值判断是否回调 listener 的 onRefresh 方法。前面提到的手动调用 mSwipeLayout.setRefreshing(true) 为什么不会回调 onRefresh 的原因就在这。
 
-```
 ## 总结
 
 分析 SwipeRefreshLayout 的流程就是按照平时我们自定义 `ViewGroup` 的流程，但是其中也有好多需要我们借鉴的地方，如何使用 NestedScrolling相关机制 ，多点触控的处理，onMeasure 中减去了 padding，如何判断子 View 是否可滚动，如何确定 ViewGroup 中某一个 View 的索引等。
