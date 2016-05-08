@@ -43,6 +43,9 @@ mySwipeRefreshLayout.setColorSchemeResources(
     android.R.color.holo_orange_light,
     android.R.color.holo_red_light);
 
+// 通过 setEnabled(false) 禁用下拉刷新
+mySwipeRefreshLayout.setEnabled(false);
+
 // 设定下拉圆圈的背景
 mSwipeLayout.setProgressBackgroundColor(R.color.red);
 
@@ -77,7 +80,7 @@ java.lang.Object
  	   ↳	android.view.ViewGroup
  	 	   ↳	android.support.v4.widget.SwipeRefreshLayout
 ```
-SwipeRefreshLayout 的分析分为两个部分：自定义 ViewGroup 的部分，处理和 子View 的嵌套滚动部分。
+SwipeRefreshLayout 的分析分为两个部分：**自定义 ViewGroup 的部分**，**处理和子视图的嵌套滚动部分**。
 
 
 
@@ -344,8 +347,6 @@ public interface NestedScrollingParent {
      */
     public boolean onNestedFling(View target, float velocityX, float velocityY, boolean consumed);
 
-
-
     /**
      * 返回当前 NestedScrollingParent 的滚动方向，
      *
@@ -392,12 +393,12 @@ SwipeRefreshLayout 只接受竖直方向（Y轴）的滚动，并且在刷新动
 public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
 
     // dy > 0 表示手指在屏幕向上移动
-    //  mTotalUnconsumed > 0 表示子视图也处理可滚动状态
+    //  mTotalUnconsumed 表示子视图Y轴未消费的距离
     // 现在表示
     if (dy > 0 && mTotalUnconsumed > 0) {
-        // 手指向上移动的距离已经达到圆圈的初始位置
+
         if (dy > mTotalUnconsumed) {
-            consumed[1] = dy - (int) mTotalUnconsumed; // parent 消费的 y 轴的距离
+            consumed[1] = dy - (int) mTotalUnconsumed; // SwipeRefreshLayout 就吧子视图位消费的距离全部消费了。
             mTotalUnconsumed = 0;
         } else {
             mTotalUnconsumed -= dy; // 消费的 y 轴的距离
@@ -412,11 +413,6 @@ public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
 
 
 // onStartNestedScroll 返回 true 才会调用此方法。此方法表示子View将滚动事件分发到父 View（SwipeRefreshLayout）
-//  @param target The descendent view controlling the nested scroll
-//  @param dxConsumed Horizontal scroll distance in pixels already consumed by target
-//  @param dyConsumed Vertical scroll distance in pixels already consumed by target
-//  @param dxUnconsumed Horizontal scroll distance in pixels not consumed by target
-//  @param dyUnconsumed Vertical scroll distance in pixels not consumed by target
 @Override
 public void onNestedScroll(final View target, final int dxConsumed, final int dyConsumed,
         final int dxUnconsumed, final int dyUnconsumed) {
@@ -435,7 +431,7 @@ public void onNestedScroll(final View target, final int dxConsumed, final int dy
     }
 }
 ```
-SwipeRefreshLayout 通过 NestedScrollingParent 接口完成了处理子视图的滚动的冲突，中间我隐藏了一些 SwipeRefreshLayout作为 child 的相关代码，这种情况是为了兼容将 SwipeRefreshLayout 作为子视图放在知识嵌套滚动的父布局的情况，这里不做深入讨论。但是下拉刷新需要判断手指在屏幕的状态来进行一个刷新的动画，所以我们还需要处理触摸事件，判断手指在屏幕中的状态。
+SwipeRefreshLayout 通过 NestedScrollingParent 接口完成了处理子视图的滚动的冲突，中间省略了一些 SwipeRefreshLayout作为 child 的相关代码，这种情况是为了兼容将 SwipeRefreshLayout 作为子视图放在知识嵌套滚动的父布局的情况，这里不做深入讨论。但是下拉刷新需要判断手指在屏幕的状态来进行一个刷新的动画，所以我们还需要处理触摸事件，判断手指在屏幕中的状态。
 
 
 首先是 onInterceptTouchEvent，返回 true 表示拦截触摸事件。
@@ -739,8 +735,6 @@ private Animation.AnimationListener mRefreshListener = new Animation.AnimationLi
    }
 };
 ```
-
-可以看到刷新动画结束后，通过 mNotify 的值判断是否回调 listener 的 onRefresh 方法。前面提到的手动调用 mSwipeLayout.setRefreshing(true) 为什么不会回调 onRefresh 的原因就在这。
 
 ## 总结
 
